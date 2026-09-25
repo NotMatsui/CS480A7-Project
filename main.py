@@ -29,7 +29,7 @@ def get(path, **params):
     )
     return r.json()
 
-OUT = "zephyr_prs.ndjson"
+OUT = "zephyr_prs.csv"
 LOG = "mine.log"
 
 
