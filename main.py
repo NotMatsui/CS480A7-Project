@@ -118,14 +118,19 @@ def step9():
 
         pr = get(f"/pulls/{number}")
         comments = get(f"/issues/{number}/comments", per_page=100)
+        reviews = get(f"/pulls/{number}/reviews", per_page=100)
+        review_comments = get(f"/pulls/{number}/comments", per_page=100)
+        commits = get(f"/pulls/{number}/commits", per_page=100)
 
         record = {
             "number": number,
             "created_at": pr["created_at"],
             "merged_at": pr["merged_at"],
+            "closed_at": pr["closed_at"],
             "author": (pr["user"] or {}).get("login"),
             "additions": pr["additions"],
             "deletions": pr["deletions"],
+            "changed_files": pr["changed_files"],
             "comments": [
                 {
                     "author": (c["user"] or {}).get("login"),
@@ -134,6 +139,35 @@ def step9():
                 }
                 for c in comments
             ],
+            "reviews": [
+                {
+                    "author": (r["user"] or {}).get("login"),
+                    "type": (r["user"] or {}).get("type"),
+                    "state": r["state"],
+                    "at": r["submitted_at"],
+                    "body": r["body"],
+                }
+                for r in reviews
+            ],
+            "review_comments": [
+                {
+                    "author": (c["user"] or {}).get("login"),
+                    "type": (c["user"] or {}).get("type"),
+                    "at": c["created_at"],
+                    "body": c["body"],
+                }
+                for c in review_comments
+            ],
+            "commits": [
+                {
+                    "sha": c["sha"],
+                    "author": (c["author"] or {}).get("login"),
+                    "type": (c["author"] or {}).get("type"),
+                    "at": c["commit"]["committer"]["date"],
+                }
+                for c in commits
+            ],
+            
         }
 
         with open(OUT, "a") as f:
