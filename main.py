@@ -13,7 +13,7 @@ OWNER = "zephyrproject-rtos"
 REPO = "zephyr"
 PR = 103195
 
-SINCE = "2026-9-10"
+SINCE = "2021-9-20"
 TO = "2026-9-20"
 
 BASE = f"https://api.github.com/repos/{OWNER}/{REPO}"
