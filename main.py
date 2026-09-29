@@ -93,6 +93,14 @@ def find_pr_numbers():
         if YEAR == datetime.datetime.strptime(SINCE, "%Y-%m-%d").year:
             for month in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").month, 13 if datetime.datetime.strptime(TO, "%Y-%m-%d").year != YEAR else datetime.datetime.strptime(TO, "%Y-%m-%d").month + 1):
                 last_day = calendar.monthrange(YEAR, month)[1]
+                last_month = datetime.datetime.strptime(TO, "%Y-%m-%d").month
+
+                if month == last_month:
+                    last_day = datetime.datetime.strptime(TO, "%Y-%m-%d").day
+                    RANGE = tuple((f, DAY) for f, l in ((1, 15), (16, last_day)) if f <= DAY <= l)
+                    for first, last in (RANGE):
+                        count_prs_in_month(YEAR, first, last, month, numbers)
+
                 if month == datetime.datetime.strptime(SINCE, "%Y-%m-%d").month:
                     DAY = datetime.datetime.strptime(SINCE, "%Y-%m-%d").day
                     RANGE = tuple((DAY, l) for f, l in ((1, 15), (16, last_day)) if f <= DAY <= l)
