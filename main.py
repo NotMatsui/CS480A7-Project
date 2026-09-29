@@ -12,8 +12,8 @@ OWNER = "zephyrproject-rtos"
 REPO = "zephyr"
 PR = 103195
 
-SINCE = "2021-09-20"
-TO = "2026-09-20"
+SINCE = "2021-08-1"
+TO = "2026-08-31"
 
 BASE = f"https://api.github.com/repos/{OWNER}/{REPO}"
 
@@ -79,17 +79,34 @@ def search(query):
     return items
 
 
+def count_prs_in_month(YEAR, first, last, month):
+    window = f"{YEAR}-{month:02d}-{first:02d}..{YEAR}-{month:02d}-{last:02d}"
+    found = search(f"repo:{OWNER}/{REPO} is:pr created:{window}")
+    numbers += [item["number"] for item in found]
+    log(f"{window}: +{len(found)}  (total {len(numbers)})")
+
+
 def find_pr_numbers():
     # half months, because a whole month of zephyr PRs gets close to the 1000 cap
     numbers = []
-    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year):
-        for month in range(1, 13):
-            last_day = calendar.monthrange(YEAR, month)[1]
-            for first, last in ((1, 15), (16, last_day)):
-                window = f"{YEAR}-{month:02d}-{first:02d}..{YEAR}-{month:02d}-{last:02d}"
-                found = search(f"repo:{OWNER}/{REPO} is:pr created:{window}")
-                numbers += [item["number"] for item in found]
-                log(f"{window}: +{len(found)}  (total {len(numbers)})")
+    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year + 1):
+        if YEAR == datetime.datetime.strptime(SINCE, "%Y-%m-%d").year:
+            for month in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").month, 13):
+                last_day = calendar.monthrange(YEAR, month)[1]
+                if month == datetime.datetime.strptime(SINCE, "%Y-%m-%d").month:
+                    for first, last in ((datetime.datetime.strptime(SINCE, "%Y-%m-%d").day, 15), (16, last_day)):
+                        count_prs_in_month(YEAR, first, last, month)
+                else:
+                    for first, last in ((1, 15), (16, last_day)):
+                        count_prs_in_month(YEAR, first, last, month)
+        else:
+            for month in range(1, 13):
+                if YEAR == datetime.datetime.strptime(TO, "%Y-%m-%d").year and month == datetime.datetime.strptime(TO, "%Y-%m-%d").month:
+                    last_day = datetime.datetime.strptime(TO, "%Y-%m-%d").day
+                else:
+                    last_day = calendar.monthrange(YEAR, month)[1]
+                for first, last in ((1, 15), (16, last_day)):
+                    count_prs_in_month(YEAR, first, last, month)
     return numbers
 
 
