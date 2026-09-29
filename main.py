@@ -5,7 +5,6 @@ import sys
 import time
 from collections import Counter
 import datetime
-from dotenv import load_dotenv
 
 import requests
 
@@ -20,8 +19,7 @@ BASE = f"https://api.github.com/repos/{OWNER}/{REPO}"
 
 gh = requests.Session()
 gh.headers["Accept"] = "application/vnd.github+json"
-load_dotenv()
-gh.headers["Authorization"] = f"Bearer {os.getenv("GITHUB_TOKEN")}"
+gh.headers["Authorization"] = f"Bearer {os.getenviron("GITHUB_TOKEN")}"
 
 def get(path, **params):
     r = gh.get(BASE + path, params=params)
