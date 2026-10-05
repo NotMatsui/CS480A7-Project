@@ -24,9 +24,23 @@ gh.headers["Authorization"] = f"Bearer {os.environ['GITHUB_TOKEN']}"
 
 def get(path, **params):
     r = gh.get(BASE + path, params=params)
-    print(
-        f"   [{r.headers['x-ratelimit-remaining']} of {r.headers['x-ratelimit-limit']} left]"
-    )
+
+    remaining = int(r.headers.get("x-ratelimit-remaining", 0))
+    limit = int(r.headers.get("x-ratelimit-limit", 0))
+
+    print(f"   [{remaining} of {limit} left]")
+
+    if remaining < 50:
+        reset = int(r.headers.get("x-ratelimit-reset", time.time()))
+        sleep_time = reset - time.time() + 5
+
+        log(
+            f"only {remaining} requests left, "
+            f"sleeping {sleep_time / 60:.0f} min"
+        )
+
+        time.sleep(max(sleep_time, 0))
+
     return r.json()
 
 OUT = "zephyr_prs.csv"
@@ -39,13 +53,6 @@ def log(msg):
     with open(LOG, "a") as f:
         f.write(line + "\n")
 
-
-def wait_if_low():
-    core = gh.get("https://api.github.com/rate_limit").json()["resources"]["core"]
-    if core["remaining"] < 50:
-        nap = core["reset"] - time.time() + 5
-        log(f"only {core['remaining']} requests left, sleeping {nap / 60:.0f} min")
-        time.sleep(max(nap, 0))
 
 
 def search(query):
@@ -79,17 +86,57 @@ def search(query):
     return items
 
 
+
 def find_pr_numbers():
-    # half months, because a whole month of zephyr PRs gets close to the 1000 cap
+    # Half-month windows prevent a single GitHub search
+    # from getting close to the 1000-result search cap.
+
     numbers = []
-    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year):
+
+    start_year = datetime.datetime.strptime(
+        SINCE, "%Y-%m-%d"
+    ).year
+
+    end_year = datetime.datetime.strptime(
+        TO, "%Y-%m-%d"
+    ).year
+
+    # +1 is important because range() excludes the ending value.
+    for YEAR in range(start_year, end_year + 1):
+
         for month in range(1, 13):
-            last_day = calendar.monthrange(YEAR, month)[1]
-            for first, last in ((1, 15), (16, last_day)):
-                window = f"{YEAR}-{month:02d}-{first:02d}..{YEAR}-{month:02d}-{last:02d}"
-                found = search(f"repo:{OWNER}/{REPO} is:pr created:{window}")
-                numbers += [item["number"] for item in found]
-                log(f"{window}: +{len(found)}  (total {len(numbers)})")
+
+            last_day = calendar.monthrange(
+                YEAR,
+                month
+            )[1]
+
+            for first, last in (
+                (1, 15),
+                (16, last_day)
+            ):
+
+                window = (
+                    f"{YEAR}-{month:02d}-{first:02d}"
+                    f".."
+                    f"{YEAR}-{month:02d}-{last:02d}"
+                )
+
+                found = search(
+                    f"repo:{OWNER}/{REPO} "
+                    f"is:pr created:{window}"
+                )
+
+                numbers += [
+                    item["number"]
+                    for item in found
+                ]
+
+                log(
+                    f"{window}: +{len(found)} "
+                    f"(total {len(numbers)})"
+                )
+
     return numbers
 
 
@@ -110,11 +157,12 @@ def step9():
         log(f"{len(numbers)} PRs to fetch for {SINCE} to {TO}, list cached")
 
     saved = 0
+
     for i, number in enumerate(numbers):
         if number in already_done:
             continue
-        if i % 20 == 0:
-            wait_if_low()
+
+    
 
         pr = get(f"/pulls/{number}")
         comments = get(f"/issues/{number}/comments", per_page=100)
