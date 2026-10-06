@@ -12,8 +12,8 @@ OWNER = "zephyrproject-rtos"
 REPO = "zephyr"
 PR = 103195
 
-SINCE = "2021-09-20"
-TO = "2026-09-20"
+SINCE = "2025-01-01"
+TO = "2025-12-31"
 
 BASE = f"https://api.github.com/repos/{OWNER}/{REPO}"
 
@@ -29,7 +29,7 @@ def get(path, **params):
     )
     return r.json()
 
-OUT = "zephyr_prs.csv"
+OUT = "2025_prs.csv"
 LOG = "mine.log"
 
 
@@ -82,7 +82,8 @@ def search(query):
 def find_pr_numbers():
     # half months, because a whole month of zephyr PRs gets close to the 1000 cap
     numbers = []
-    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year):
+    # for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year):
+    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year + 1):
         for month in range(1, 13):
             last_day = calendar.monthrange(YEAR, month)[1]
             for first, last in ((1, 15), (16, last_day)):
@@ -100,7 +101,8 @@ def step9():
             already_done.add(json.loads(line)["number"])
     log(f"starting - {len(already_done)} PRs already saved, skipping those")
 
-    numbers_file = f"pr_numbers.json"
+    # numbers_file = f"pr_numbers.json"
+    numbers_file = f"pr_numbers_{SINCE}_{TO}.json"
     if os.path.exists(numbers_file):
         numbers = json.load(open(numbers_file))
         log(f"reusing cached list of {len(numbers)} PR numbers")
