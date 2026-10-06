@@ -19,14 +19,27 @@ BASE = f"https://api.github.com/repos/{OWNER}/{REPO}"
 
 gh = requests.Session()
 gh.headers["Accept"] = "application/vnd.github+json"
-gh.headers["User-Agent"] = "cs480a7-project5"
-gh.headers["Authorization"] = f"Bearer {os.environ['GITHUB_TOKEN']}"
+gh.headers["Authorization"] = f"Bearer {os.environ["GITHUB_TOKEN"]}"
 
 def get(path, **params):
     r = gh.get(BASE + path, params=params)
-    print(
-        f"   [{r.headers['x-ratelimit-remaining']} of {r.headers['x-ratelimit-limit']} left]"
-    )
+
+    remaining = int(r.headers.get("x-ratelimit-remaining", 0))
+    limit = int(r.headers.get("x-ratelimit-limit", 0))
+
+    print(f"   [{remaining} of {limit} left]")
+
+    if remaining < 50:
+        reset = int(r.headers.get("x-ratelimit-reset", time.time()))
+        sleep_time = reset - time.time() + 5
+
+        log(
+            f"only {remaining} requests left, "
+            f"sleeping {sleep_time / 60:.0f} min"
+        )
+
+        time.sleep(max(sleep_time, 0))
+
     return r.json()
 
 OUT = "zephyr_prs.csv"
@@ -39,13 +52,6 @@ def log(msg):
     with open(LOG, "a") as f:
         f.write(line + "\n")
 
-
-def wait_if_low():
-    core = gh.get("https://api.github.com/rate_limit").json()["resources"]["core"]
-    if core["remaining"] < 50:
-        nap = core["reset"] - time.time() + 5
-        log(f"only {core['remaining']} requests left, sleeping {nap / 60:.0f} min")
-        time.sleep(max(nap, 0))
 
 
 def search(query):
@@ -79,17 +85,56 @@ def search(query):
     return items
 
 
+def count_prs_in_month(YEAR, first, last, month, numbers):
+    window = f"{YEAR}-{month:02d}-{first:02d}..{YEAR}-{month:02d}-{last:02d}"
+    found = search(f"repo:{OWNER}/{REPO} is:pr created:{window}")
+    numbers += [item["number"] for item in found]
+    log(f"{window}: +{len(found)}  (total {len(numbers)})")
+
+
 def find_pr_numbers():
-    # half months, because a whole month of zephyr PRs gets close to the 1000 cap
+    # Half-month windows prevent a single GitHub search
+    # from getting close to the 1000-result search cap.
+
     numbers = []
-    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year):
-        for month in range(1, 13):
-            last_day = calendar.monthrange(YEAR, month)[1]
-            for first, last in ((1, 15), (16, last_day)):
-                window = f"{YEAR}-{month:02d}-{first:02d}..{YEAR}-{month:02d}-{last:02d}"
-                found = search(f"repo:{OWNER}/{REPO} is:pr created:{window}")
-                numbers += [item["number"] for item in found]
-                log(f"{window}: +{len(found)}  (total {len(numbers)})")
+    for YEAR in range(datetime.datetime.strptime(SINCE, "%Y-%m-%d").year, datetime.datetime.strptime(TO, "%Y-%m-%d").year + 1):
+        first_year = datetime.datetime.strptime(SINCE, "%Y-%m-%d").year
+        if YEAR == first_year:
+            first_month = datetime.datetime.strptime(SINCE, "%Y-%m-%d").month
+            final_year = datetime.datetime.strptime(TO, "%Y-%m-%d").year
+            final_month = datetime.datetime.strptime(TO, "%Y-%m-%d").month
+
+            for month in range(first_month, 13 if YEAR != final_year else final_month + 1):
+                final_day = calendar.monthrange(YEAR, month)[1]
+                final_month = datetime.datetime.strptime(TO, "%Y-%m-%d").month
+
+                if month == final_month and YEAR == final_year:
+                    final_day = datetime.datetime.strptime(TO, "%Y-%m-%d").day
+                    RANGE = tuple((f, min(final_day, l)) for f, l in ((1, 10), (11, 20), (21, final_day)) if f <= final_day)
+                    for first, last in (RANGE):
+                        count_prs_in_month(YEAR, first, last, month, numbers)
+                    return numbers
+
+                if month == first_month:
+                    first_day = datetime.datetime.strptime(SINCE, "%Y-%m-%d").day
+                    RANGE = tuple((max(first_day, f), l) for f, l in ((1, 10), (11, 20), (21, final_day)) if first_day <= l)
+                    for first, last in (RANGE):
+                        count_prs_in_month(YEAR, first, last, month, numbers)
+                else:
+                    for first, last in ((1, 10), (11, 20), (21, final_day)):
+                        count_prs_in_month(YEAR, first, last, month, numbers)
+        else:
+            for month in range(1, 13):
+                if YEAR == datetime.datetime.strptime(TO, "%Y-%m-%d").year and month == datetime.datetime.strptime(TO, "%Y-%m-%d").month:
+                    final_day = datetime.datetime.strptime(TO, "%Y-%m-%d").day
+                    RANGE = tuple((f, min(final_day, l)) for f, l in ((1, 10), (11, 20), (21, final_day)) if f <= final_day)
+                    for first, last in (RANGE):
+                        count_prs_in_month(YEAR, first, last, month, numbers)
+                    return numbers
+                else:
+                    final_day = calendar.monthrange(YEAR, month)[1]
+                    for first, last in ((1, 10), (11, 20), (21, final_day)):
+                        count_prs_in_month(YEAR, first, last, month, numbers)
     return numbers
 
 
@@ -110,11 +155,12 @@ def step9():
         log(f"{len(numbers)} PRs to fetch for {SINCE} to {TO}, list cached")
 
     saved = 0
+
     for i, number in enumerate(numbers):
         if number in already_done:
             continue
-        if i % 20 == 0:
-            wait_if_low()
+
+    
 
         pr = get(f"/pulls/{number}")
         comments = get(f"/issues/{number}/comments", per_page=100)
