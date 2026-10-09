@@ -3,7 +3,7 @@ import time
 
 import pandas as pd
 
-IN = "zephyr_prs.csv"
+IN = "PRs/Full_data"
 OUT_JSONL = "cleaned_prs.jsonl"
 OUT_CSV = "cleaned_prs.csv"
 LOG = "clean.log"
