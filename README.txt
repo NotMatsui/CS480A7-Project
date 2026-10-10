@@ -27,6 +27,6 @@ Artifacts retrieved: 66,504
 
 After observation-period filter: 61446
 
-After exclusions: 56,539
+After exclusions: 56,538
 
 Final observations: 56,538
