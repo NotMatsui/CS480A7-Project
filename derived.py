@@ -2,7 +2,7 @@ import csv
 import json
 import datetime
 
-with open ('zephyr_prs.csv', 'r', encoding= 'utf-8') as rawfile:
+with open ('ind_vars.csv', 'r', encoding= 'utf-8') as rawfile:
     with open ('analysis_ready.csv', 'w') as analysisfile:
         derivedvarwriter = csv.writer(analysisfile, delimiter= ',', quotechar='"', quoting=csv.QUOTE_MINIMAL)
         for line in rawfile:
@@ -88,6 +88,6 @@ with open ('zephyr_prs.csv', 'r', encoding= 'utf-8') as rawfile:
                     feedback_delay_reviews.append(commit_delay_reviews)
                 pr["feedback_delay_reviews"] = feedback_delay_reviews
                     
-            derivedvarwriter.writerow([pr])
+            analysisfile.write(json.dumps(pr) + "\n")
 
             
