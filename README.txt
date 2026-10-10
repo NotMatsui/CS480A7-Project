@@ -13,7 +13,6 @@ run derived.py
 - add the line GITHUB_TOKEN = your_github_token_here to it
 
 ## Cleaning the data
-works on python 
 run "python clean.py"
 
 ## Adding independent Variables
@@ -23,3 +22,11 @@ run "python independent.py"
 ## Derived Variables
 works on python 3.9.25
 run "python derived.py"
+
+Artifacts retrieved: 66,504
+
+After observation-period filter: 61446
+
+After exclusions: 56,539
+
+Final observations: 56,538
