@@ -73,6 +73,8 @@ with open ('ind_vars.csv', 'r', encoding= 'utf-8') as rawfile:
                             break
                     feedback_delay_comments.append(commit_delay_comments)
                 pr["feedback_delay_comments"] = feedback_delay_comments
+            else:
+                pr["feedback_delay_comments"] = []
 
             #review to commit delay
             feedback_delay_reviews = []
@@ -87,6 +89,8 @@ with open ('ind_vars.csv', 'r', encoding= 'utf-8') as rawfile:
                             break
                     feedback_delay_reviews.append(commit_delay_reviews)
                 pr["feedback_delay_reviews"] = feedback_delay_reviews
+            else:
+                pr["feedback_delay_reviews"] = []
                     
             analysisfile.write(json.dumps(pr) + "\n")
 
