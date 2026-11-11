@@ -1,0 +1,10 @@
+{
+    "TTFR_median": 18750.5,
+    "TTFR_mean": 317941.5269385878,
+    "feedback_delay_comments_median": 113243.0,
+    "feedback_delay_comments_mean": 1724875.5125859384,
+    "feedback_delay_reviews_median": 76210.0,
+    "feedback_delay_reviews_mean": 1308786.5325871247,
+    "total_feedback_delay_median": 71419.0,
+    "total_feedback_delay_mean": 1303376.5400402283
+}
