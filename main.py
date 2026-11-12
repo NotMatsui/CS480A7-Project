@@ -1,3 +1,12 @@
+# ***************************************************************************************
+# *    Title: rest_lab.py
+# *    Author: Satyanarayana Chowdary Kadiyala
+# *    Date: 9/28/2026
+# *    Code version: Python 3.9.25
+# *    Availability: https://colostate.sharepoint.com/:u:/r/sites/CompSci_CS480A7_Fall26/Shared%20Documents/General/Lab01.zip?d=w7838d3e8695b44599f5dc66d62ccd072&csf=1&web=1&e=rLTw3j
+# *
+# ***************************************************************************************
+
 import calendar
 import json
 import os
