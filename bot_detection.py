@@ -5,6 +5,7 @@ import sys
 
 import pandas as pd
 from rabbit_ng import run_rabbit
+from rabbit_ng.errors import RabbitErrors
 
 IN_PATH = "PRs/Full_data"
 DETECTED_BOTS = "detected_bots.txt"
@@ -45,8 +46,16 @@ def run_rabbit_cached(usernames, token):
             not_asked_yet.append(username)
 
     # ask RABBIT about the new ones, saving each answer to the file right away
-    for res in run_rabbit(not_asked_yet, api_key=token):
-        answer = {"author": res.contributor, "user_type": res.user_type, "confidence": res.confidence}
+    for username in not_asked_yet:
+        try:
+            for res in run_rabbit([username], api_key=token):
+                answer = {"author": res.contributor, "user_type": res.user_type, "confidence": res.confidence}
+        except RabbitErrors as err:
+            # rate limit / network errors are subclasses, so let those stop the run
+            if type(err) is not RabbitErrors:
+                raise
+            print(f"RABBIT failed on {username}: {err}")
+            answer = {"author": username, "user_type": "Unknown", "confidence": "-"}
         with open(LOG, "a", encoding="utf-8") as f:
             f.write(json.dumps(answer, default=str) + "\n")
         saved[answer["author"]] = answer
