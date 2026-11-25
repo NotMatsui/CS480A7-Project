@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 
@@ -13,6 +14,7 @@ END = "2026-09-20"
 
 # Temporary rec from AI since I discussed temp solutions until RABBIT-ng can be set up
 BOT_LOGINS = {"zephyrbot"}  # also counted as bot GitHub type "Bot" and names ending in [bot]
+DETECTED_BOTS = "detected_bots.txt"  # written in bot_detection.py one login per line
 
 FEEDBACK = ["comments", "reviews", "review_comments"]  # what people write on a PR
 EVENTS = FEEDBACK + ["commits"]
@@ -24,6 +26,18 @@ def log(msg):
     print(line, flush=True)
     with open(LOG, "a") as f:
         f.write(line + "\n")
+
+def load_detected_bots():
+   
+    if not os.path.exists(DETECTED_BOTS):
+        log(f"{DETECTED_BOTS} not found. Going to use only hard coded bots")
+        return
+    with open(DETECTED_BOTS, encoding="utf-8") as f:
+        for line in f:
+            login = line.strip()
+            if login:
+                BOT_LOGINS.add(login)
+    log(f"loaded {DETECTED_BOTS}, {len(BOT_LOGINS)} known bot logins in total")
 
 # Todo here is check if its bot and GitHub type bot [bot] or something like that
 # check this again later on comeback to this
@@ -82,6 +96,8 @@ def main():
                  "If it was opened in Excel and saved again, use the original file.")
     log(f"read {len(df)} PRs from {path}")
     #########################################################################################
+
+    load_detected_bots()
 
 
     # 1. Study window: keep PRs created between START and END

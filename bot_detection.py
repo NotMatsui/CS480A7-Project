@@ -1,3 +1,4 @@
+import json
 import os
 import sys
 
@@ -5,8 +6,9 @@ import sys
 import pandas as pd
 from rabbit_ng import run_rabbit
 
-CSV_PATH = "cleaned_prs.jsonl"
+IN_PATH = "PRs/Full_data"
 DETECTED_BOTS = "detected_bots.txt"
+LOG = "rabbit_results.jsonl"  # cache: one line per account RABBIT already answered for
 SEED = 42
 
 # note to self:
@@ -15,28 +17,54 @@ SEED = 42
 # review comments: inline comments 
 FEEDBACK = ["comments", "reviews", "review_comments"]
 
-def load_prs(path: str, year: int) -> pd.DataFrame:
+def load_prs(path: str) -> pd.DataFrame:
     try:
         df = pd.read_json(path, lines=True, dtype=False, convert_dates=False)
     except ValueError:
         sys.exit(f"{path} is not the raw output of main.py (one JSON object per line). "
         "If it was opened in Excel and saved again, use the original file.")
     # Drops missing values within author col
-    # I think jsonl cant read "" entries as NaNs but I checked the data doesn't seem to be a problem at all
+    # I think jsonl cant read "" entries as NaNs but I checked the data doesn't seem to be a problem right now
     df_pr_author = df.dropna(subset=["author"])
 
-    # return df_pr_author
+    return df_pr_author
 
-    # only PRs created in the given year (created_at is an ISO string like "2021-03-04T...")
-    return df_pr_author[df_pr_author["created_at"].str[:4] == str(year)]
+def run_rabbit_cached(usernames, token):
+    #  read the answers saved by earlier runs into a dictionary
+    saved = {}
+    if os.path.exists(LOG):
+        with open(LOG, encoding="utf-8") as f:
+            for line in f:
+                answer = json.loads(line)
+                saved[answer["author"]] = answer
+
+    # find the usernames we haven't asked RABBIT about yet
+    not_asked_yet = []
+    for username in usernames:
+        if username not in saved:
+            not_asked_yet.append(username)
+
+    # ask RABBIT about the new ones, saving each answer to the file right away
+    for res in run_rabbit(not_asked_yet, api_key=token):
+        answer = {"author": res.contributor, "user_type": res.user_type, "confidence": res.confidence}
+        with open(LOG, "a", encoding="utf-8") as f:
+            f.write(json.dumps(answer, default=str) + "\n")
+        saved[answer["author"]] = answer
+
+    #answer for every username asked about
+    answers = []
+    for username in usernames:
+        if username in saved:
+            answers.append(saved[username])
+    return answers
 
 def find_bots(usernames, token) -> set:
     classified_bots = set()
 
-    for res in run_rabbit(sorted(usernames), api_key=token):
-        print("Contributer: ", res.contributor, "User Type: ", res.user_type, "Conf: ", res.confidence)
-        if res.user_type == "Bot":
-            classified_bots.add(res.contributor)
+    for r in run_rabbit_cached(sorted(usernames), token):
+        # print("Contributer: ", r["author"], "User Type: ", r["user_type"], "Conf: ", r["confidence"])
+        if r["user_type"] == "Bot":
+            classified_bots.add(r["author"])
     return classified_bots
 
 def drop_Bot_Authored_PRs(pr_authors, df, token):
@@ -51,9 +79,9 @@ def drop_Bot_Authored_Feedback(pr_authors, df, token):
     print(f"{len(feedback_bots)} bot feedback authors")
     return feedback_bots
 
-def main(year: int) -> None:
-    df = load_prs(CSV_PATH, year)
-    print(f"{year}: {len(df)} PRs, {df['author'].nunique()} unique PR authors")
+def main() -> None:
+    df = load_prs(IN_PATH)
+    print(f"{len(df)} PRs, {df['author'].nunique()} unique PR authors")
 
     token = os.environ.get("GITHUB_TOKEN", "").strip().strip("\"'")
 
@@ -69,4 +97,4 @@ def main(year: int) -> None:
 
 
 if __name__ == "__main__":
-    main(int(sys.argv[1]) if len(sys.argv) > 1 else 2021)
+    main()
